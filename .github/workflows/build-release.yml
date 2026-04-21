@@ -47,7 +47,7 @@ jobs:
             -o "${APP}/Contents/MacOS/Hello Agent" \
             src/hello-agent-shell.m
 
-          # Copy Node.js binary
+          # Bundle Node.js binary
           cp "$(which node)" "${APP}/Contents/MacOS/node"
 
           # Copy web frontend
@@ -83,6 +83,7 @@ jobs:
             <key>CFBundleShortVersionString</key><string>1.0.0</string>
             <key>CFBundleExecutable</key><string>Hello Agent</string>
             <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleIconFile</key><string>app</string>
             <key>LSMinimumSystemVersion</key><string>11.0</string>
             <key>NSHighResolutionCapable</key><true/>
             <key>NSSupportsAutomaticGraphicsSwitching</key><true/>
@@ -91,7 +92,7 @@ jobs:
           PLIST
           }
 
-          # Copy app icon if exists
+          # Copy app icon
           cp logo/app-icon.icns "${APP}/Contents/Resources/app.icns" 2>/dev/null || true
 
       - name: Zip macOS app
@@ -113,14 +114,28 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+
+      - name: Download Node.js binary
+        run: |
+          NODE_URL="https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.gz"
+          echo "Downloading $NODE_URL"
+          curl -fsSL "$NODE_URL" -o node.tar.gz
+          tar -xzf node.tar.gz
+          NODE_BIN="node-v-${NODE_VERSION}-linux-x64/bin/node"
+          echo "Node binary: $NODE_BIN"
 
       - name: Install dependencies
         run: npm ci
 
       - name: Package Linux
         run: |
-          PKG="build/hello-agent-linux"
+          PKG="build/hello-agent"
+          mkdir -p "${PKG}"
+
+          # Bundle Node.js binary
+          cp "node-v-${NODE_VERSION}-linux-x64/bin/node" "${PKG}/node"
+          chmod +x "${PKG}/node"
+
           mkdir -p "${PKG}/Data/core"
           mkdir -p "${PKG}/Data/modules/adapters"
           mkdir -p "${PKG}/Data/tools"
@@ -150,10 +165,22 @@ jobs:
           cp scripts/linux/start.sh "${PKG}/start.sh"
           chmod +x "${PKG}/start.sh"
 
+          # Create .desktop file
+          cat > "${PKG}/hello-agent.desktop" << 'DESKTOP'
+          [Desktop Entry]
+          Name=Hello Agent
+          Comment=Self-evolving AI Agent
+          Exec=bash -c "cd $(dirname %f) && ./start.sh"
+          Icon=hello-agent.png
+          Terminal=false
+          Type=Application
+          Categories=AI;Utility;
+          DESKTOP
+
       - name: Zip Linux package
         run: |
           cd build
-          tar czf "../Hello-Agent-Linux.tar.gz" hello-agent-linux
+          tar czf "../Hello-Agent-Linux.tar.gz" hello-agent
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
@@ -169,7 +196,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+
+      - name: Download Node.js binary
+        shell: pwsh
+        run: |
+          $version = "${{ env.NODE_VERSION }}"
+          $url = "https://nodejs.org/dist/v${version}/node-v${version}-win-x64.zip"
+          Write-Host "Downloading $url"
+          curl -fsSL "$url" -o node.zip
+          Expand-Archive -Force node.zip
+          Write-Host "Node binary extracted"
 
       - name: Install dependencies
         run: npm ci
@@ -177,40 +213,53 @@ jobs:
       - name: Package Windows
         shell: pwsh
         run: |
-          $pkg = "build/hello-agent-windows"
-          New-Item -ItemType Directory -Force -Path "$pkg/Data/core"
-          New-Item -ItemType Directory -Force -Path "$pkg/Data/modules/adapters"
-          New-Item -ItemType Directory -Force -Path "$pkg/Data/tools"
-          New-Item -ItemType Directory -Force -Path "$pkg/Data/config"
-          New-Item -ItemType Directory -Force -Path "$pkg/Data/logs"
-          New-Item -ItemType Directory -Force -Path "$pkg/web/lib"
+          $pkg = "build\Hello-Agent"
+          New-Item -ItemType Directory -Force -Path "$pkg"
+
+          # Bundle Node.js binary
+          Copy-Item "node-v-${{ env.NODE_VERSION }}-win-x64\node.exe" "$pkg\node.exe"
+
+          New-Item -ItemType Directory -Force -Path "$pkg\Data\core"
+          New-Item -ItemType Directory -Force -Path "$pkg\Data\modules\adapters"
+          New-Item -ItemType Directory -Force -Path "$pkg\Data\tools"
+          New-Item -ItemType Directory -Force -Path "$pkg\Data\config"
+          New-Item -ItemType Directory -Force -Path "$pkg\Data\logs"
+          New-Item -ItemType Directory -Force -Path "$pkg\web\lib"
 
           # Copy web frontend
-          Copy-Item "web/index.html" "$pkg/web/"
-          Copy-Item "web/lib/*" "$pkg/web/lib/"
-          if (Test-Path "web/logo.png") { Copy-Item "web/logo.png" "$pkg/web/" }
+          Copy-Item "web\index.html" "$pkg\web\"
+          Copy-Item "web\lib\*" "$pkg\web\lib\"
+          if (Test-Path "web\logo.png") { Copy-Item "web\logo.png" "$pkg\web\" }
 
           # Copy backend source
-          Copy-Item "src/core/*.js" "$pkg/Data/core/"
-          Copy-Item "src/modules/*.js" "$pkg/Data/modules/"
-          Copy-Item "src/modules/adapters/*.js" "$pkg/Data/modules/adapters/"
-          Copy-Item "src/tools/*.js" "$pkg/Data/tools/"
-          if (Test-Path "src/config/*.example") { Copy-Item "src/config/*.example" "$pkg/Data/config/" }
-          Copy-Item "package.json" "$pkg/Data/"
+          Copy-Item "src\core\*.js" "$pkg\Data\core\"
+          Copy-Item "src\modules\*.js" "$pkg\Data\modules\"
+          Copy-Item "src\modules\adapters\*.js" "$pkg\Data\modules\adapters\"
+          Copy-Item "src\tools\*.js" "$pkg\Data\tools\"
+          if (Test-Path "src\config\*.example") { Copy-Item "src\config\*.example" "$pkg\Data\config\" }
+          Copy-Item "package.json" "$pkg\Data\"
 
           # Install production dependencies
-          Set-Location "$pkg/Data"
+          Set-Location "$pkg\Data"
           npm install --production --no-optional 2>$null; if ($LASTEXITCODE -ne 0) { npm install --production }
           Set-Location "$env:GITHUB_WORKSPACE"
 
           # Copy launcher scripts
-          Copy-Item "scripts/windows/start.bat" "$pkg/start.bat"
-          Copy-Item "scripts/windows/start.ps1" "$pkg/start.ps1"
+          Copy-Item "scripts\windows\start.bat" "$pkg\start.bat"
+          Copy-Item "scripts\windows\start.ps1" "$pkg\start.ps1"
+
+          # Create shortcut
+          $WshShell = New-Object -ComObject WScript.Shell
+          $Shortcut = $WshShell.CreateShortcut("$pkg\Hello Agent.lnk")
+          $Shortcut.TargetPath = "$pkg\start.bat"
+          $Shortcut.WorkingDirectory = "$pkg"
+          $Shortcut.Description = "Hello Agent - Self-evolving AI Agent"
+          $Shortcut.Save()
 
       - name: Zip Windows package
         shell: pwsh
         run: |
-          Compress-Archive -Path "build/hello-agent-windows" -DestinationPath "Hello-Agent-Windows.zip"
+          Compress-Archive -Path "build\Hello-Agent" -DestinationPath "Hello-Agent-Windows.zip"
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
@@ -248,16 +297,30 @@ jobs:
             ## Hello Agent ${{ steps.version.outputs.tag }}
 
             ### 📦 Downloads
-            | Platform | File |
-            |----------|------|
-            | macOS | `Hello-Agent-macOS.zip` |
-            | Windows | `Hello-Agent-Windows.zip` |
-            | Linux | `Hello-Agent-Linux.tar.gz` |
+            | Platform | File | Requirements |
+            |----------|-------|---------------|
+            | macOS | `Hello-Agent-macOS.zip` | macOS 11+ |
+            | Windows | `Hello-Agent-Windows.zip` | Windows 10+ |
+            | Linux | `Hello-Agent-Linux.tar.gz` | Ubuntu 18.04+ |
 
             ### 🚀 Installation
-            - **macOS**: Unzip → Move to `/Applications/` → Open
-            - **Windows**: Unzip → Run `start.bat`
-            - **Linux**: Extract → Run `./start.sh`
+
+            **macOS**:
+            1. 下载 `Hello-Agent-macOS.zip`
+            2. 解压，将 `Hello Agent.app` 拖入 `/Applications/` 目录
+            3. 打开 Hello Agent，首次运行需在 设置 → 资源配置 中填入 AI 模型 API 密钥
+
+            **Windows**:
+            1. 下载 `Hello-Agent-Windows.zip`
+            2. 解压到任意目录（如 `C:\Program Files\Hello Agent`）
+            3. 双击 `start.bat` 或 `Hello Agent.lnk` 启动
+
+            **Linux**:
+            1. 下载 `Hello-Agent-Linux.tar.gz`
+            2. 解压到任意目录
+            3. 运行 `./start.sh` 或双击 `hello-agent.desktop`（需赋予执行权限）
+
+            > 💡 下载 APP 后无需安装 Node.js，所有依赖已内置于压缩包中。
 
             ---
 
