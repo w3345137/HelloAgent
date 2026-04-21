@@ -205,7 +205,8 @@ jobs:
           $url = "https://nodejs.org/dist/v${version}/node-v${version}-win-x64.zip"
           Write-Host "Downloading $url"
           curl -fsSL "$url" -o node.zip
-          Expand-Archive -Force node.zip
+          Expand-Archive -Force -DestinationPath . node.zip
+          Get-ChildItem
           Write-Host "Node binary extracted"
 
       - name: Install dependencies
@@ -218,7 +219,10 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$pkg"
 
           # Bundle Node.js binary
-          Copy-Item "node-v${{ env.NODE_VERSION }}-win-x64\node.exe" "$pkg\node.exe"
+          Copy-Item "node-v${{ env.NODE_VERSION }}-win-x64\node.exe" "$pkg\node.exe" -ErrorAction SilentlyContinue
+          if (-not (Test-Path "$pkg\node.exe")) {
+            Copy-Item "node\node-v${{ env.NODE_VERSION }}-win-x64\node.exe" "$pkg\node.exe"
+          }
 
           New-Item -ItemType Directory -Force -Path "$pkg\Data\core"
           New-Item -ItemType Directory -Force -Path "$pkg\Data\modules\adapters"
