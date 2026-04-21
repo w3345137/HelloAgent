@@ -12,7 +12,7 @@ on:
         default: 'v1.0.1'
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: '20.19.0'
 
 jobs:
   build-macos:
@@ -121,7 +121,8 @@ jobs:
           echo "Downloading $NODE_URL"
           curl -fsSL "$NODE_URL" -o node.tar.gz
           tar -xzf node.tar.gz
-          NODE_BIN="node-v-${NODE_VERSION}-linux-x64/bin/node"
+          ls -la
+          NODE_BIN="node-v${NODE_VERSION}-linux-x64/bin/node"
           echo "Node binary: $NODE_BIN"
 
       - name: Install dependencies
@@ -133,7 +134,7 @@ jobs:
           mkdir -p "${PKG}"
 
           # Bundle Node.js binary
-          cp "node-v-${NODE_VERSION}-linux-x64/bin/node" "${PKG}/node"
+          cp "node-v${NODE_VERSION}-linux-x64/bin/node" "${PKG}/node"
           chmod +x "${PKG}/node"
 
           mkdir -p "${PKG}/Data/core"
@@ -217,7 +218,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$pkg"
 
           # Bundle Node.js binary
-          Copy-Item "node-v-${{ env.NODE_VERSION }}-win-x64\node.exe" "$pkg\node.exe"
+          Copy-Item "node-v${{ env.NODE_VERSION }}-win-x64\node.exe" "$pkg\node.exe"
 
           New-Item -ItemType Directory -Force -Path "$pkg\Data\core"
           New-Item -ItemType Directory -Force -Path "$pkg\Data\modules\adapters"
