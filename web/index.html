@@ -5122,14 +5122,47 @@ function handleAtReference() {
         if (dropdown) dropdown.style.display = 'none';
         return;
     }
+    if (!atProjectFilesCache || atProjectFilesCache.length === 0) {
+        loadProjectFiles();
+        if (!dropdown) {
+            const dd = document.createElement('div');
+            dd.id = 'at-dropdown';
+            dd.style.cssText = 'position:absolute;bottom:100%;left:0;right:0;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);max-height:200px;overflow-y:auto;z-index:50;box-shadow:0 -4px 12px rgba(0,0,0,0.2);';
+            const activePage = document.querySelector('.page.active');
+            const wrap = activePage ? activePage.querySelector('.chat-input-wrap') : null;
+            if (wrap) { wrap.style.position = 'relative'; wrap.appendChild(dd); }
+        }
+        dropdown = document.getElementById('at-dropdown');
+        dropdown.style.display = 'block';
+        dropdown.innerHTML = '<div style="padding:8px 12px;font-size:12px;color:var(--text-muted);text-align:center;">加载中...</div>';
+        return;
+    }
     const query = atMatch[1].toLowerCase();
-    const files = (atProjectFilesCache || []).filter(f => f.toLowerCase().includes(query)).slice(0, 10);
-    if (files.length === 0) { if (dropdown) dropdown.style.display = 'none'; return; }
+    const files = atProjectFilesCache.filter(f => f.toLowerCase().includes(query)).slice(0, 10);
+    if (files.length === 0) {
+        if (!dropdown) {
+            const dd = document.createElement('div');
+            dd.id = 'at-dropdown';
+            dd.style.cssText = 'position:absolute;bottom:100%;left:0;right:0;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);max-height:200px;overflow-y:auto;z-index:50;box-shadow:0 -4px 12px rgba(0,0,0,0.2);';
+            const activePage = document.querySelector('.page.active');
+            const wrap = activePage ? activePage.querySelector('.chat-input-wrap') : null;
+            if (wrap) { wrap.style.position = 'relative'; wrap.appendChild(dd); }
+        }
+        dropdown = document.getElementById('at-dropdown');
+        dropdown.style.display = 'block';
+        if (atProjectFilesCache.length === 0) {
+            dropdown.innerHTML = '<div style="padding:8px 12px;font-size:12px;color:var(--text-muted);text-align:center;">请先在任务设置中配置工作目录</div>';
+        } else {
+            dropdown.innerHTML = '<div style="padding:8px 12px;font-size:12px;color:var(--text-muted);text-align:center;">无匹配文件</div>';
+        }
+        return;
+    }
     if (!dropdown) {
         const dd = document.createElement('div');
         dd.id = 'at-dropdown';
         dd.style.cssText = 'position:absolute;bottom:100%;left:0;right:0;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);max-height:200px;overflow-y:auto;z-index:50;box-shadow:0 -4px 12px rgba(0,0,0,0.2);';
-        const wrap = document.querySelector('.chat-input-wrap');
+        const activePage = document.querySelector('.page.active');
+        const wrap = activePage ? activePage.querySelector('.chat-input-wrap') : null;
         if (wrap) { wrap.style.position = 'relative'; wrap.appendChild(dd); }
     }
     dropdown = document.getElementById('at-dropdown');
@@ -5155,6 +5188,9 @@ async function loadProjectFiles() {
         const res = await fetch('/api/project/files?session=' + encodeURIComponent(currentSessionKey));
         const data = await res.json();
         atProjectFilesCache = data.files || [];
+        if (chatInput.value.match(/@\S*$/)) {
+            handleAtReference();
+        }
     } catch { atProjectFilesCache = []; }
 }
 
