@@ -941,7 +941,7 @@ class WebBridge {
         this.app.get('/api/project/files', async (req, res) => {
             try {
                 const sessionKey = req.query.session || '';
-                const session = sessions[sessionKey];
+                const session = this.sessionManager.get(sessionKey);
                 if (!session || !session.workFolder) {
                     return res.json({ files: [] });
                 }
@@ -973,7 +973,7 @@ class WebBridge {
             try {
                 const sessionKey = req.query.session || '';
                 const filePath = req.query.path || '';
-                const session = sessions[sessionKey];
+                const session = this.sessionManager.get(sessionKey);
                 if (!session || !session.workFolder) {
                     return res.status(400).json({ error: 'No active session' });
                 }
