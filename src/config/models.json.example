@@ -1,0 +1,30 @@
+[
+  {
+    "id": "Minimax-2.7",
+    "name": "MiniMax-M2.7",
+    "protocol": "anthropic",
+    "endpoint": "https://api.minimaxi.com/anthropic/v1/messages",
+    "apiKey": "",
+    "model": "Minimax-2.7",
+    "icon": "",
+    "active": true
+  },
+  {
+    "id": "gpt-4o",
+    "name": "GPT-4o",
+    "protocol": "openai",
+    "endpoint": "https://api.openai.com/v1/chat/completions",
+    "model": "gpt-4o",
+    "active": false,
+    "apiKey": ""
+  },
+  {
+    "id": "claude-3-sonnet",
+    "name": "Claude 3 Sonnet",
+    "protocol": "anthropic",
+    "endpoint": "https://api.anthropic.com/v1/messages",
+    "model": "claude-3-sonnet-20240229",
+    "active": false,
+    "apiKey": ""
+  }
+]

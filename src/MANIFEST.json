@@ -1,0 +1,107 @@
+{
+  "name": "hello-agent",
+  "version": "1.0.0",
+  "description": "Hello Agent - 自主进化、打包带走、自我运行的数字生命",
+  "buildTime": "2026-04-05T13:00:00Z",
+  "entry": "core/main.js",
+  "runtime": {
+    "node": "22.22.1",
+    "platform": "darwin",
+    "arch": "arm64"
+  },
+  "modules": {
+    "core": {
+      "state-machine": {
+        "file": "core/state-machine.js",
+        "description": "状态机驱动，IDLE/PLANNING/EXECUTING/INTERRUPTING/RECOVERING 五状态",
+        "exports": ["stateMachine"]
+      },
+      "message-bus": {
+        "file": "core/message-bus.js",
+        "description": "异步事件总线，基于 EventEmitter",
+        "exports": ["messageBus"]
+      },
+      "brain": {
+        "file": "core/brain.js",
+        "description": "AI 大脑，接收指令解析 ACTION 格式",
+        "exports": ["Brain"]
+      },
+      "executor": {
+        "file": "core/executor.js",
+        "description": "执行调度器，监听 EXECUTE 事件",
+        "exports": ["executor"]
+      },
+      "sensor": {
+        "file": "core/sensor.js",
+        "description": "观测层，错误阈值触发进化",
+        "exports": ["Sensor"]
+      },
+      "evolution": {
+        "file": "core/evolution.js",
+        "description": "进化层，AI 诊断 + 补丁生成",
+        "exports": ["Evolution"]
+      },
+      "hot-reloader": {
+        "file": "core/hot-reloader.js",
+        "description": "热重载，清除 require.cache",
+        "exports": ["hotReloader"]
+      },
+      "logger": {
+        "file": "core/logger.js",
+        "description": "日志持久化，写入 logs/ 目录",
+        "exports": ["logger"]
+      }
+    },
+    "modules": {
+      "minimax-adapter": {
+        "file": "modules/minimax-adapter.js",
+        "description": "MiniMax API 适配器，Anthropic 兼容协议",
+        "exports": ["MiniMaxAdapter"]
+      },
+      "file-executor": {
+        "file": "modules/file-executor.js",
+        "description": "文件读写执行器",
+        "exports": ["fileExecutor"]
+      },
+      "web-bridge": {
+        "file": "modules/web-bridge.js",
+        "description": "HTTP API + WebSocket 桥接",
+        "exports": ["WebBridge"]
+      },
+      "http-executor": {
+        "file": "modules/http-executor.js",
+        "description": "网络请求执行器",
+        "exports": ["httpExecutor"],
+        "status": "active"
+      }
+    }
+  },
+  "events": {
+    "USER_INPUT": { "emitter": "web-bridge", "handler": "brain" },
+    "CHAT_REPLY": { "emitter": "brain", "handler": "web-bridge" },
+    "EXECUTE": { "emitter": "brain", "handler": "executor" },
+    "EXECUTE_RESULT": { "emitter": "executor", "handler": "brain" },
+    "STATE": { "emitter": "state-machine", "handler": "web-bridge" },
+    "ERROR": { "emitter": "*", "handler": "sensor" },
+    "EVOLVE": { "emitter": "sensor", "handler": "evolution" },
+    "INTERRUPT": { "emitter": "web-bridge", "handler": "main" }
+  },
+  "config": {
+    "apiKey": "从 config.json 读取",
+    "port": 3000,
+    "errorThreshold": 3,
+    "windowMs": 60000
+  },
+  "directories": {
+    "logs": "logs/",
+    "memory": "memory/",
+    "workspace": "workspace/",
+    "patches": "patches/"
+  },
+  "status": {
+    "clipboard": "fixed",
+    "network": "active",
+    "sandbox": "active",
+    "rollback": "active"
+  }
+}

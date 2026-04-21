@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest", "--port", "8931", "--headless"],
+      "url": "http://localhost:8931/mcp",
+      "enabled": true,
+      "description": "Playwright 浏览器自动化"
+    }
+  }
+}

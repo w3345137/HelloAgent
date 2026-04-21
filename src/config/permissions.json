@@ -1,0 +1,320 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2026-04-05T17:45:00.000Z",
+  "fileAccess": {
+    "enabled": true,
+    "mode": "whitelist",
+    "paths": [
+      {
+        "path": "~/Desktop",
+        "permissions": ["read", "write", "delete"],
+        "recursive": true
+      },
+      {
+        "path": "~/Documents",
+        "permissions": ["read", "write"],
+        "recursive": true
+      },
+      {
+        "path": "~/Downloads",
+        "permissions": ["read"],
+        "recursive": true
+      },
+      {
+        "path": "~/Projects",
+        "permissions": ["read", "write"],
+        "recursive": true
+      },
+      {
+        "path": "/tmp",
+        "permissions": ["read", "write", "delete"],
+        "recursive": true
+      }
+    ],
+    "blockedPaths": [
+      "/System",
+      "/etc",
+      "~/.ssh",
+      "~/.gnupg",
+      "/usr/bin",
+      "/usr/sbin",
+      "/Library/LaunchDaemons"
+    ],
+    "maxFileSize": 10485760,
+    "allowedExtensions": ["*"]
+  },
+  "shellExecution": {
+    "enabled": true,
+    "mode": "whitelist",
+    "allowedCommands": [
+      {
+        "command": "ls",
+        "description": "列出目录内容",
+        "risk": "safe",
+        "needsConfirmation": false
+      },
+      {
+        "command": "cat",
+        "description": "查看文件内容",
+        "risk": "safe",
+        "needsConfirmation": false
+      },
+      {
+        "command": "pwd",
+        "description": "显示当前目录",
+        "risk": "safe",
+        "needsConfirmation": false
+      },
+      {
+        "command": "echo",
+        "description": "输出文本",
+        "risk": "safe",
+        "needsConfirmation": false
+      },
+      {
+        "command": "head",
+        "description": "查看文件开头",
+        "risk": "safe",
+        "needsConfirmation": false
+      },
+      {
+        "command": "tail",
+        "description": "查看文件末尾",
+        "risk": "safe",
+        "needsConfirmation": false
+      },
+      {
+        "command": "wc",
+        "description": "统计行数/字数",
+        "risk": "safe",
+        "needsConfirmation": false
+      },
+      {
+        "command": "grep",
+        "description": "文本搜索",
+        "risk": "safe",
+        "needsConfirmation": false
+      },
+      {
+        "command": "curl",
+        "description": "网络请求（天气、搜索等）",
+        "risk": "safe",
+        "needsConfirmation": false
+      },
+      {
+        "command": "sed",
+        "description": "文本处理",
+        "risk": "safe",
+        "needsConfirmation": false
+      },
+      {
+        "command": "awk",
+        "description": "文本分析",
+        "risk": "safe",
+        "needsConfirmation": false
+      },
+      {
+        "command": "find",
+        "description": "查找文件",
+        "risk": "safe",
+        "needsConfirmation": false
+      },
+      {
+        "command": "which",
+        "description": "查找命令路径",
+        "risk": "safe",
+        "needsConfirmation": false
+      },
+      {
+        "command": "date",
+        "description": "显示日期时间",
+        "risk": "safe",
+        "needsConfirmation": false
+      },
+      {
+        "command": "whoami",
+        "description": "显示当前用户",
+        "risk": "safe",
+        "needsConfirmation": false
+      },
+      {
+        "command": "uname",
+        "description": "系统信息",
+        "risk": "safe",
+        "needsConfirmation": false
+      },
+      {
+        "command": "df",
+        "description": "磁盘空间",
+        "risk": "safe",
+        "needsConfirmation": false
+      },
+      {
+        "command": "du",
+        "description": "目录大小",
+        "risk": "safe",
+        "needsConfirmation": false
+      },
+      {
+        "command": "mkdir",
+        "description": "创建目录",
+        "risk": "safe",
+        "needsConfirmation": false
+      },
+      {
+        "command": "cp",
+        "description": "复制文件",
+        "risk": "moderate",
+        "needsConfirmation": true
+      },
+      {
+        "command": "mv",
+        "description": "移动/重命名文件",
+        "risk": "moderate",
+        "needsConfirmation": true
+      },
+      {
+        "command": "node",
+        "description": "运行 Node.js 脚本",
+        "risk": "moderate",
+        "needsConfirmation": true
+      },
+      {
+        "command": "npm",
+        "description": "Node 包管理器",
+        "risk": "moderate",
+        "needsConfirmation": true
+      },
+      {
+        "command": "git",
+        "description": "Git 版本控制",
+        "risk": "moderate",
+        "needsConfirmation": true
+      },
+      {
+        "command": "python3",
+        "description": "运行 Python 脚本",
+        "risk": "moderate",
+        "needsConfirmation": true
+      },
+      {
+        "command": "docker",
+        "description": "Docker 容器管理",
+        "risk": "moderate",
+        "needsConfirmation": true
+      }
+    ],
+    "blockedCommands": [
+      {
+        "command": "rm -rf",
+        "reason": "可能删除重要文件"
+      },
+      {
+        "command": "sudo",
+        "reason": "需要管理员权限"
+      },
+      {
+        "command": "dd",
+        "reason": "可能破坏磁盘数据"
+      },
+      {
+        "command": "mkfs",
+        "reason": "格式化磁盘"
+      },
+      {
+        "command": "chmod 777",
+        "reason": "不安全的权限设置"
+      },
+      {
+        "command": "kill -9",
+        "reason": "强制终止进程"
+      },
+      {
+        "command": "shutdown",
+        "reason": "关机命令"
+      },
+      {
+        "command": "reboot",
+        "reason": "重启命令"
+      }
+    ],
+    "timeout": 30000,
+    "maxConcurrent": 3
+  },
+  "appExecution": {
+    "enabled": true,
+    "mode": "whitelist",
+    "allowedApps": [
+      {
+        "name": "Safari",
+        "path": "/Applications/Safari.app",
+        "icon": "",
+        "description": "默认浏览器",
+        "needsConfirmation": true
+      },
+      {
+        "name": "Chrome",
+        "path": "/Applications/Google Chrome.app",
+        "icon": "",
+        "description": "Google 浏览器",
+        "needsConfirmation": true
+      },
+      {
+        "name": "VSCode",
+        "path": "/Applications/Visual Studio Code.app",
+        "icon": "",
+        "description": "代码编辑器",
+        "needsConfirmation": false
+      },
+      {
+        "name": "Finder",
+        "path": "/System/Library/CoreServices/Finder.app",
+        "icon": "",
+        "description": "文件管理器",
+        "needsConfirmation": false
+      },
+      {
+        "name": "Terminal",
+        "path": "/System/Applications/Utilities/Terminal.app",
+        "icon": "",
+        "description": "终端",
+        "needsConfirmation": true
+      },
+      {
+        "name": "Preview",
+        "path": "/System/Applications/Preview.app",
+        "icon": "",
+        "description": "预览（图片/PDF）",
+        "needsConfirmation": false
+      },
+      {
+        "name": "TextEdit",
+        "path": "/System/Applications/TextEdit.app",
+        "icon": "",
+        "description": "文本编辑器",
+        "needsConfirmation": false
+      },
+      {
+        "name": "Calculator",
+        "path": "/System/Applications/Calculator.app",
+        "icon": "",
+        "description": "计算器",
+        "needsConfirmation": false
+      }
+    ],
+    "blockedApps": []
+  },
+  "networkAccess": {
+    "enabled": true,
+    "allowedDomains": ["*"],
+    "blockedDomains": [],
+    "maxResponseSize": 52428800,
+    "timeout": 30000
+  },
+  "security": {
+    "auditLog": true,
+    "notifyOnSensitiveAction": true,
+    "autoBackup": true,
+    "backupInterval": 3600000
+  }
+}

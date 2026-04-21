@@ -1,0 +1,20 @@
+{
+  "name": "hello-agent",
+  "version": "1.0.0",
+  "description": "A self-evolving digital entity",
+  "main": "src/core/main.js",
+  "scripts": {
+    "start": "node src/core/main.js",
+    "test": "node src/test-suite/run-tests.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@playwright/mcp": "^0.0.70",
+    "axios": "^1.14.0",
+    "express": "^5.2.1",
+    "jszip": "^3.10.1",
+    "localtunnel": "^2.0.2",
+    "ws": "^8.20.0"
+  }
+}

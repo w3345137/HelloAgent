@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hello Agent - 权限管理中心</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        
+        .tabs {
+            display: flex;
+            background: white;
+            border-radius: 12px;
+            padding: 5px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+            color: #666;
+        }
+        
+        .tab:hover {
+            background: #f5f5f5;
+        }
+        
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .panel {
+            display: none;
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .panel.active {
+            display: block;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .card {
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 12px;
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s;
+        }
+        
+        .card:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border-color: #667eea;
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .card-title {
+            font-weight: 600;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .card-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .btn {
+            padding: 6px 14px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-danger {
+            background: #ff4757;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #ff3838;
+        }
+        
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+        
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+        
+        .toggle {
+            position: relative;
+            width: 50px;
+            height: 26px;
+            background: #e0e0e0;
+            border-radius: 13px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .toggle.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .toggle::after {
+            content: '';
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .toggle.active::after {
+            transform: translateX(24px);
+        }
+        
+        .badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .badge-safe {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .badge-moderate {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .badge-dangerous {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .permission-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 8px;
+            margin-top: 10px;
+        }
+        
+        .permission-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+        }
+        
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #666;
+        }
+        
+        .input-group input,
+        .input-group select,
+        .input-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .input-group input:focus,
+        .input-group select:focus,
+        .input-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .status-bar {
+            background: #f0f0f0;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #28a745;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        
+        .info-text {
+            font-size: 13px;
+            color: #666;
+            margin-top: 8px;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 8px;
+        }
+        
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        
+        .checkbox-label input {
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;vertical-align:middle;margin-right:6px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>权限管理中心
+            </h1>
+            <p>控制 Hello Agent 系统的文件访问、命令执行和应用调用权限</p>
+        </header>
+        
+        <div class="tabs">
+            <button class="tab active" data-tab="files"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>文件访问</button>
+            <button class="tab" data-tab="commands"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>命令执行</button>
+            <button class="tab" data-tab="apps"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>应用调用</button>
+            <button class="tab" data-tab="security"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>安全设置</button>
+        </div>
+        
+        <!-- 文件访问权限 -->
+        <div class="panel active" id="files-panel">
+            <div class="status-bar">
+                <div class="status-indicator">
+                    <div class="status-dot"></div>
+                    <span>文件访问功能已启用</span>
+                </div>
+                <div>
+                    <span>模式：</span>
+                    <select id="file-mode" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #ddd;">
+                        <option value="whitelist">白名单模式</option>
+                        <option value="blacklist">黑名单模式</option>
+                        <option value="unrestricted">无限制</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">
+                    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>允许访问的路径</span>
+                    <button class="btn btn-primary" onclick="addFilePath()">+ 添加路径</button>
+                </div>
+                <div id="file-paths-list"></div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">
+                    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>禁止访问的路径</span>
+                </div>
+                <div id="blocked-paths-list"></div>
+            </div>
+        </div>
+        
+        <!-- 命令执行权限 -->
+        <div class="panel" id="commands-panel">
+            <div class="status-bar">
+                <div class="status-indicator">
+                    <div class="status-dot"></div>
+                    <span>命令执行功能已启用</span>
+                </div>
+                <div>
+                    <span>模式：</span>
+                    <select id="command-mode" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #ddd;">
+                        <option value="whitelist">白名单模式</option>
+                        <option value="blacklist">黑名单模式</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">
+                    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"><path d="M20 6L9 17l-5-5"/></svg>允许执行的命令</span>
+                    <button class="btn btn-primary" onclick="addCommand()">+ 添加命令</button>
+                </div>
+                <div id="allowed-commands-list"></div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">
+                    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>禁止执行的命令</span>
+                </div>
+                <div id="blocked-commands-list"></div>
+            </div>
+        </div>
+        
+        <!-- 应用调用权限 -->
+        <div class="panel" id="apps-panel">
+            <div class="status-bar">
+                <div class="status-indicator">
+                    <div class="status-dot"></div>
+                    <span>应用调用功能已启用</span>
+                </div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">
+                    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"><path d="M20 6L9 17l-5-5"/></svg>允许调用的应用</span>
+                    <button class="btn btn-primary" onclick="addApp()">+ 添加应用</button>
+                </div>
+                <div id="allowed-apps-list"></div>
+            </div>
+        </div>
+        
+        <!-- 安全设置 -->
+        <div class="panel" id="security-panel">
+            <div class="section">
+                <div class="section-title">
+                    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>通用设置</span>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>操作审计日志
+                        </div>
+                        <div class="toggle active" id="audit-toggle" onclick="toggleSetting('audit')"></div>
+                    </div>
+                    <p class="info-text">记录所有文件、命令和应用操作，便于追溯</p>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>敏感操作通知
+                        </div>
+                        <div class="toggle active" id="notify-toggle" onclick="toggleSetting('notify')"></div>
+                    </div>
+                    <p class="info-text">执行敏感操作时通知用户确认</p>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>自动备份配置
+                        </div>
+                        <div class="toggle active" id="backup-toggle" onclick="toggleSetting('backup')"></div>
+                    </div>
+                    <p class="info-text">定期备份权限配置文件</p>
+                </div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">
+                    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>高级设置</span>
+                </div>
+                
+                <div class="input-group">
+                    <label>命令执行超时（毫秒）</label>
+                    <input type="number" id="shell-timeout" value="30000" min="5000" max="300000">
+                </div>
+                
+                <div class="input-group">
+                    <label>最大文件大小（字节）</label>
+                    <input type="number" id="max-file-size" value="10485760" min="1048576" max="104857600">
+                </div>
+                
+                <button class="btn btn-primary" onclick="saveSettings()">保存设置</button>
+                <button class="btn btn-secondary" onclick="resetPermissions()">重置为默认</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 添加文件路径模态框 -->
+    <div class="modal" id="add-path-modal">
+        <div class="modal-content">
+            <div class="modal-header">添加文件访问路径</div>
+            
+            <div class="input-group">
+                <label>路径</label>
+                <input type="text" id="new-path-input" placeholder="例如: ~/Desktop 或 /Users/username/Documents">
+            </div>
+            
+            <div class="input-group">
+                <label>权限</label>
+                <div class="checkbox-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="perm-read" checked> 读取
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="perm-write"> 写入
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="perm-delete"> 删除
+                    </label>
+                </div>
+            </div>
+            
+            <div class="input-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="perm-recursive" checked> 包含子目录
+                </label>
+            </div>
+            
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('add-path-modal')">取消</button>
+                <button class="btn btn-primary" onclick="saveFilePath()">添加</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 添加命令模态框 -->
+    <div class="modal" id="add-command-modal">
+        <div class="modal-content">
+            <div class="modal-header">添加允许的命令</div>
+            
+            <div class="input-group">
+                <label>命令名称</label>
+                <input type="text" id="new-command-input" placeholder="例如: ls, cat, npm">
+            </div>
+            
+            <div class="input-group">
+                <label>描述</label>
+                <input type="text" id="command-desc-input" placeholder="命令用途说明">
+            </div>
+            
+            <div class="input-group">
+                <label>风险等级</label>
+                <select id="command-risk">
+                    <option value="safe">安全</option>
+                    <option value="moderate">中等</option>
+                    <option value="dangerous">危险</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="command-confirm"> 执行前需要用户确认
+                </label>
+            </div>
+            
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('add-command-modal')">取消</button>
+                <button class="btn btn-primary" onclick="saveCommand()">添加</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 添加应用模态框 -->
+    <div class="modal" id="add-app-modal">
+        <div class="modal-content">
+            <div class="modal-header">添加允许的应用</div>
+            
+            <div class="input-group">
+                <label>应用名称</label>
+                <input type="text" id="new-app-name" placeholder="例如: Safari">
+            </div>
+            
+            <div class="input-group">
+                <label>应用路径</label>
+                <input type="text" id="new-app-path" placeholder="例如: /Applications/Safari.app">
+            </div>
+            
+            <div class="input-group">
+                <label>描述</label>
+                <input type="text" id="app-desc" placeholder="应用用途说明">
+            </div>
+            
+            <div class="input-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="app-confirm"> 打开前需要用户确认
+                </label>
+            </div>
+            
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('add-app-modal')">取消</button>
+                <button class="btn btn-primary" onclick="saveApp()">添加</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // WebSocket连接
+        let ws = null;
+        let permissions = null;
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            initWebSocket();
+            initTabs();
+        });
+        
+        // WebSocket初始化
+        function initWebSocket() {
+            ws = new WebSocket('ws://localhost:3000');
+            
+            ws.onopen = () => {
+                console.log('WebSocket已连接');
+                requestPermissions();
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleMessage(data);
+            };
+            
+            ws.onerror = (error) => {
+                console.error('WebSocket错误:', error);
+            };
+        }
+        
+        // 处理消息
+        function handleMessage(data) {
+            if (data.type === 'PERMISSIONS_DATA') {
+                permissions = data.config;
+                renderUI();
+            } else if (data.type === 'PERMISSIONS_UPDATED') {
+                showNotification('权限配置已更新');
+                requestPermissions();
+            }
+        }
+        
+        // 请求权限配置
+        function requestPermissions() {
+            ws.send(JSON.stringify({ type: 'GET_PERMISSIONS' }));
+        }
+        
+        // 标签切换
+        function initTabs() {
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    
+                    const panelId = tab.dataset.tab + '-panel';
+                    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+                    document.getElementById(panelId).classList.add('active');
+                });
+            });
+        }
+        
+        // 渲染UI
+        function renderUI() {
+            if (!permissions) return;
+            
+            renderFilePaths();
+            renderCommands();
+            renderApps();
+            renderSecurity();
+        }
+        
+        // 渲染文件路径
+        function renderFilePaths() {
+            const list = document.getElementById('file-paths-list');
+            list.innerHTML = '';
+            
+            permissions.fileAccess.paths.forEach((pathConfig, index) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>${pathConfig.path}</div>
+                        <div class="card-actions">
+                            <button class="btn btn-danger btn-sm" onclick="removeFilePath(${index})">删除</button>
+                        </div>
+                    </div>
+                    <div class="permission-grid">
+                        ${pathConfig.permissions.map(p => `<span class="badge badge-safe">${p}</span>`).join('')}
+                    </div>
+                    <p class="info-text">${pathConfig.recursive ? '✓ 包含子目录' : '✗ 不包含子目录'}</p>
+                `;
+                list.appendChild(card);
+            });
+        }
+        
+        // 渲染命令
+        function renderCommands() {
+            const list = document.getElementById('allowed-commands-list');
+            list.innerHTML = '';
+            
+            permissions.shellExecution.allowedCommands.forEach((cmd, index) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div class="card-title">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>${cmd.command}
+                            <span class="badge badge-${cmd.risk}">${getRiskText(cmd.risk)}</span>
+                        </div>
+                        <div class="card-actions">
+                            <button class="btn btn-danger btn-sm" onclick="removeCommand(${index})">删除</button>
+                        </div>
+                    </div>
+                    <p class="info-text">${cmd.description}</p>
+                    <p class="info-text">${cmd.needsConfirmation ? '⚠️ 需要用户确认' : '✓ 自动执行'}</p>
+                `;
+                list.appendChild(card);
+            });
+        }
+        
+        // 渲染应用
+        function renderApps() {
+            const list = document.getElementById('allowed-apps-list');
+            list.innerHTML = '';
+            
+            permissions.appExecution.allowedApps.forEach((app, index) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div class="card-title">
+                            ${app.icon || '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>'} ${app.name}
+                        </div>
+                        <div class="card-actions">
+                            <button class="btn btn-danger btn-sm" onclick="removeApp(${index})">删除</button>
+                        </div>
+                    </div>
+                    <p class="info-text">${app.description}</p>
+                    <p class="info-text">路径: ${app.path}</p>
+                    <p class="info-text">${app.needsConfirmation ? '⚠️ 需要用户确认' : '✓ 自动打开'}</p>
+                `;
+                list.appendChild(card);
+            });
+        }
+        
+        // 渲染安全设置
+        function renderSecurity() {
+            document.getElementById('audit-toggle').classList.toggle('active', permissions.security.auditLog);
+            document.getElementById('notify-toggle').classList.toggle('active', permissions.security.notifyOnSensitiveAction);
+            document.getElementById('backup-toggle').classList.toggle('active', permissions.security.autoBackup);
+            document.getElementById('shell-timeout').value = permissions.shellExecution.timeout;
+            document.getElementById('max-file-size').value = permissions.fileAccess.maxFileSize;
+        }
+        
+        // 风险等级文本
+        function getRiskText(risk) {
+            const texts = {
+                safe: '安全',
+                moderate: '中等',
+                dangerous: '危险'
+            };
+            return texts[risk] || risk;
+        }
+        
+        // 添加文件路径
+        function addFilePath() {
+            document.getElementById('add-path-modal').classList.add('active');
+        }
+        
+        // 保存文件路径
+        function saveFilePath() {
+            const path = document.getElementById('new-path-input').value;
+            const permissions = [];
+            
+            if (document.getElementById('perm-read').checked) permissions.push('read');
+            if (document.getElementById('perm-write').checked) permissions.push('write');
+            if (document.getElementById('perm-delete').checked) permissions.push('delete');
+            
+            const recursive = document.getElementById('perm-recursive').checked;
+            
+            ws.send(JSON.stringify({
+                type: 'ADD_FILE_PATH',
+                pathConfig: { path, permissions, recursive }
+            }));
+            
+            closeModal('add-path-modal');
+        }
+        
+        // 添加命令
+        function addCommand() {
+            document.getElementById('add-command-modal').classList.add('active');
+        }
+        
+        // 保存命令
+        function saveCommand() {
+            const command = document.getElementById('new-command-input').value;
+            const description = document.getElementById('command-desc-input').value;
+            const risk = document.getElementById('command-risk').value;
+            const needsConfirmation = document.getElementById('command-confirm').checked;
+            
+            ws.send(JSON.stringify({
+                type: 'ADD_COMMAND',
+                commandConfig: { command, description, risk, needsConfirmation }
+            }));
+            
+            closeModal('add-command-modal');
+        }
+        
+        // 添加应用
+        function addApp() {
+            document.getElementById('add-app-modal').classList.add('active');
+        }
+        
+        // 保存应用
+        function saveApp() {
+            const name = document.getElementById('new-app-name').value;
+            const path = document.getElementById('new-app-path').value;
+            const description = document.getElementById('app-desc').value;
+            const needsConfirmation = document.getElementById('app-confirm').checked;
+            
+            ws.send(JSON.stringify({
+                type: 'ADD_APP',
+                appConfig: { name, path, description, needsConfirmation, icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>' }
+            }));
+            
+            closeModal('add-app-modal');
+        }
+        
+        // 关闭模态框
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+        
+        // 切换设置
+        function toggleSetting(setting) {
+            const toggle = document.getElementById(setting + '-toggle');
+            toggle.classList.toggle('active');
+            
+            // 保存设置
+            saveSettings();
+        }
+        
+        // 保存设置
+        function saveSettings() {
+            const updates = {
+                security: {
+                    auditLog: document.getElementById('audit-toggle').classList.contains('active'),
+                    notifyOnSensitiveAction: document.getElementById('notify-toggle').classList.contains('active'),
+                    autoBackup: document.getElementById('backup-toggle').classList.contains('active')
+                },
+                shellExecution: {
+                    timeout: parseInt(document.getElementById('shell-timeout').value)
+                },
+                fileAccess: {
+                    maxFileSize: parseInt(document.getElementById('max-file-size').value)
+                }
+            };
+            
+            ws.send(JSON.stringify({
+                type: 'UPDATE_PERMISSIONS',
+                config: updates
+            }));
+        }
+        
+        // 重置权限
+        function resetPermissions() {
+            if (confirm('确定要重置所有权限设置为默认值吗？')) {
+                ws.send(JSON.stringify({ type: 'RESET_PERMISSIONS' }));
+            }
+        }
+        
+        // 删除文件路径
+        function removeFilePath(index) {
+            if (confirm('确定要删除此路径吗？')) {
+                ws.send(JSON.stringify({
+                    type: 'REMOVE_FILE_PATH',
+                    index
+                }));
+            }
+        }
+        
+        // 删除命令
+        function removeCommand(index) {
+            if (confirm('确定要删除此命令吗？')) {
+                ws.send(JSON.stringify({
+                    type: 'REMOVE_COMMAND',
+                    index
+                }));
+            }
+        }
+        
+        // 删除应用
+        function removeApp(index) {
+            if (confirm('确定要删除此应用吗？')) {
+                ws.send(JSON.stringify({
+                    type: 'REMOVE_APP',
+                    index
+                }));
+            }
+        }
+        
+        // 显示通知
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #28a745;
+                color: white;
+                padding: 12px 20px;
+                border-radius: 6px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                z-index: 1001;
+                animation: slideIn 0.3s ease;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+    </script>
+    
+    <style>
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</body>
+</html>

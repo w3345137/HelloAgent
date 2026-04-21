@@ -1,0 +1,13 @@
+{
+    "apiKey": "",
+    "port": 3000,
+    "model": "Minimax-2.7",
+    "modelConfig": {
+        "id": "minimax-m2.7",
+        "name": "MiniMax-M2.7",
+        "protocol": "anthropic",
+        "endpoint": "https://api.minimaxi.com/anthropic/v1/messages",
+        "apiKey": "",
+        "model": "Minimax-2.7"
+    }
+}
