@@ -6,6 +6,9 @@ set SCRIPT_DIR=%~dp0
 set DATA_DIR=%SCRIPT_DIR%Data
 set NODE_PATH=%DATA_DIR%\node_modules
 set HELLO_AGENT_PORT=3000
+set GITHUB_REPO=w3345137/HelloAgent
+set APP_VERSION=1.0.0
+set APP_DIR=%SCRIPT_DIR%
 
 if not exist "%DATA_DIR%\logs" mkdir "%DATA_DIR%\logs"
 

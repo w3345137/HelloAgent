@@ -1001,8 +1001,9 @@ class WebBridge {
         });
 
         // ── 自动更新 API ──
-        const APP_VERSION = '1.0.0';
+        const APP_VERSION = process.env.APP_VERSION || '1.0.0';
         const GITHUB_REPO = process.env.GITHUB_REPO || '';
+        const PLATFORM = process.platform;
 
         this.app.get('/api/update/check', async (req, res) => {
             try {
@@ -1097,24 +1098,68 @@ class WebBridge {
                     return res.status(400).json({ error: '归档文件不存在' });
                 }
 
-                const appPath = process.env.APP_PATH || '/Applications/Hello Agent.app';
                 const tmpDir = path.join(os.tmpdir(), 'hello-agent-update');
+                const { execSync } = require('child_process');
 
-                if (archivePath.endsWith('.zip')) {
-                    const { execSync } = require('child_process');
-                    execSync(`unzip -o "${archivePath}" -d "${tmpDir}/extracted"`, { timeout: 60000 });
-                    const extractedApp = fs.readdirSync(path.join(tmpDir, 'extracted'))
-                        .find(f => f.endsWith('.app'));
-                    if (!extractedApp) {
-                        return res.json({ success: false, error: '归档中未找到 .app 文件' });
+                // macOS: 替换 .app 目录
+                if (PLATFORM === 'darwin') {
+                    const appPath = process.env.APP_PATH || '/Applications/Hello Agent.app';
+                    if (archivePath.endsWith('.zip')) {
+                        execSync(`unzip -o "${archivePath}" -d "${tmpDir}/extracted"`, { timeout: 60000 });
+                        const extractedApp = fs.readdirSync(path.join(tmpDir, 'extracted'))
+                            .find(f => f.endsWith('.app'));
+                        if (!extractedApp) {
+                            return res.json({ success: false, error: '归档中未找到 .app 文件' });
+                        }
+                        const srcApp = path.join(tmpDir, 'extracted', extractedApp);
+                        execSync(`rm -rf "${appPath}"`, { timeout: 10000 });
+                        execSync(`cp -R "${srcApp}" "${appPath}"`, { timeout: 60000 });
+                        execSync(`rm -rf "${tmpDir}"`, { timeout: 10000 });
+                        // 自动重启
+                        setTimeout(() => {
+                            execSync('open "/Applications/Hello Agent.app"', { timeout: 10000 });
+                            process.exit(0);
+                        }, 500);
+                        res.json({ success: true, message: '更新完成，正在重启...' });
+                    } else {
+                        res.json({ success: false, error: '不支持的归档格式，仅支持 .zip' });
                     }
-                    const srcApp = path.join(tmpDir, 'extracted', extractedApp);
-                    execSync(`rm -rf "${appPath}"`, { timeout: 10000 });
-                    execSync(`cp -R "${srcApp}" "${appPath}"`, { timeout: 60000 });
-                    execSync(`rm -rf "${tmpDir}"`, { timeout: 10000 });
-                    res.json({ success: true, message: '更新完成，请重启应用' });
+                }
+                // Linux: 解压替换当前目录
+                else if (PLATFORM === 'linux') {
+                    const appDir = process.env.APP_DIR || process.cwd();
+                    if (archivePath.endsWith('.tar.gz')) {
+                        execSync(`tar xzf "${archivePath}" -C "${tmpDir}/extracted"`, { timeout: 60000 });
+                        const extracted = fs.readdirSync(path.join(tmpDir, 'extracted'))[0];
+                        if (!extracted) {
+                            return res.json({ success: false, error: '归档解压后为空' });
+                        }
+                        const srcDir = path.join(tmpDir, 'extracted', extracted);
+                        execSync(`cp -R "${srcDir}"/* "${appDir}/"`, { timeout: 60000 });
+                        execSync(`rm -rf "${tmpDir}"`, { timeout: 10000 });
+                        res.json({ success: true, message: '更新完成，请手动重启 Hello Agent' });
+                    } else {
+                        res.json({ success: false, error: '不支持的归档格式，仅支持 .tar.gz' });
+                    }
+                }
+                // Windows: 解压替换当前目录
+                else if (PLATFORM === 'win32') {
+                    const appDir = process.env.APP_DIR || process.cwd();
+                    if (archivePath.endsWith('.zip')) {
+                        execSync(`powershell -Command "Expand-Archive -Force -Path '${archivePath}' -DestinationPath '${tmpDir}/extracted'"`, { timeout: 60000 });
+                        const extracted = fs.readdirSync(path.join(tmpDir, 'extracted'))[0];
+                        if (!extracted) {
+                            return res.json({ success: false, error: '归档解压后为空' });
+                        }
+                        const srcDir = path.join(tmpDir, 'extracted', extracted);
+                        execSync(`xcopy /E /I /Y "${srcDir}" "${appDir}"`, { timeout: 60000 });
+                        execSync(`rd /S /Q "${tmpDir}"`, { timeout: 10000 });
+                        res.json({ success: true, message: '更新完成，请手动重启 Hello Agent' });
+                    } else {
+                        res.json({ success: false, error: '不支持的归档格式，仅支持 .zip' });
+                    }
                 } else {
-                    res.json({ success: false, error: '不支持的归档格式，仅支持 .zip' });
+                    res.json({ success: false, error: '不支持的操作系统: ' + PLATFORM });
                 }
             } catch (err) {
                 res.json({ success: false, error: err.message });

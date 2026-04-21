@@ -8,6 +8,9 @@ $LogFile = Join-Path $DataDir "logs\hello-agent.log"
 
 $env:NODE_PATH = $NodePath
 $env:HELLO_AGENT_PORT = "3000"
+$env:GITHUB_REPO = "w3345137/HelloAgent"
+$env:APP_VERSION = "1.0.0"
+$env:APP_DIR = $ScriptDir
 
 if (-not (Test-Path (Join-Path $DataDir "logs"))) {
     New-Item -ItemType Directory -Path (Join-Path $DataDir "logs") | Out-Null

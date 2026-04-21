@@ -3,6 +3,9 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 DATA_DIR="$DIR/Data"
 export NODE_PATH="$DATA_DIR/node_modules"
 export HELLO_AGENT_PORT=3000
+export GITHUB_REPO="w3345137/HelloAgent"
+export APP_VERSION="1.0.0"
+export APP_DIR="$DIR"
 
 mkdir -p "$DATA_DIR/logs"
 

@@ -66,6 +66,9 @@ static pid_t g_nodePid = 0;
     if (pid == 0) {
         setenv("NODE_PATH", [nmPath UTF8String], 1);
         setenv("HELLO_AGENT_PORT", "3000", 1);
+        setenv("GITHUB_REPO", "w3345137/HelloAgent", 1);
+        setenv("APP_VERSION", "1.0.0", 1);
+        setenv("APP_PATH", "/Applications/Hello Agent.app", 1);
 
         NSString *logFile = [logDir stringByAppendingPathComponent:@"hello-agent.log"];
         int fd = open([logFile UTF8String], O_WRONLY | O_CREAT | O_TRUNC, 0644);
