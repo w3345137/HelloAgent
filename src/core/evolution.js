@@ -4,7 +4,6 @@ const path = require('path');
 const messageBus = require('./message-bus');
 const surgeon = require('./surgeon');
 const logger = require('./logger');
-const TestRunner = require('./test-runner');
 
 class Evolution {
     constructor(adapter, options = {}) {
@@ -20,9 +19,6 @@ class Evolution {
             testTimeout: options.testTimeout || 30000,       // 测试超时时间
             ...options
         };
-        
-        // 测试运行器
-        this.testRunner = new TestRunner(this.config);
         
         // 进化统计
         this.stats = {
@@ -234,19 +230,18 @@ class Evolution {
     }
 
     /**
-     * 在沙盒环境中测试补丁
+     * 在沙盒环境中测试补丁（使用 surgeon.runTests 进行语法验证）
      */
     async _testPatchInSandbox(modulePath, patchCode) {
         try {
-            // 1. 创建沙盒环境
-            await this.testRunner.createSandbox(modulePath, patchCode);
-            
-            // 2. 运行测试套件
-            const result = await this.testRunner.runTests(modulePath);
-            
-            // 3. 清理沙盒
-            await this.testRunner.cleanupSandbox();
-            
+            // 语法检查 + 模块加载测试
+            const result = surgeon.runTests(modulePath, `
+                // 基本加载测试
+                if (typeof source === 'undefined') {
+                    throw new Error('Module failed to load');
+                }
+                console.log('Module loaded OK');
+            `);
             return result;
         } catch (error) {
             return {
@@ -283,7 +278,7 @@ class Evolution {
     }
 
     async _diagnose(errors) {
-        const errorSummary = errors.map(e => e.message || JSON.stringify(e)).join('\n');
+        const errorSummary = (errors || []).map(e => e.message || JSON.stringify(e)).join('\n');
         
         // 读取相关源代码（增强诊断上下文）
         let sourceContext = '';

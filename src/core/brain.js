@@ -428,6 +428,15 @@ class Brain {
                                 sessionKey: _sk
                             });
                         }
+                        // DeepSeek 思考内容，也转发给前端
+                        if (chunk.type === 'reasoning' && chunk.text) {
+                            messageBus.publish('CHAT_STREAM', {
+                                type: 'reasoning',
+                                text: chunk.text,
+                                fullText: chunk.fullText,
+                                sessionKey: _sk
+                            });
+                        }
                     }
                 ));
                 
@@ -450,8 +459,11 @@ class Brain {
                         continueCount++;
                         console.log(`[Brain] Output truncated (max_tokens), continuing... (${continueCount}/${MAX_CONTINUATIONS})`);
                         
-                        // 将截断文本加入历史
-                        this.history.push({ role: 'assistant', content: finalText });
+                        // 将截断文本加入历史（含 reasoning_content）
+                        const contHistMsg = { role: 'assistant', content: finalText };
+                        const contReasoning = result.reasoningContent || '';
+                        if (contReasoning) contHistMsg.reasoning_content = contReasoning;
+                        this.history.push(contHistMsg);
                         // 追加"继续"提示
                         this.history.push({ role: 'user', content: '请继续，从你上次中断的地方接着写，不要重复已输出的内容。' });
                         this.trimHistory();
@@ -464,6 +476,14 @@ class Brain {
                                 (chunk) => {
                                     if (chunk.type === 'text' && chunk.text) {
                                         messageBus.publish('CHAT_STREAM', {
+                                            text: chunk.text,
+                                            fullText: chunk.fullText,
+                                            sessionKey: _sk
+                                        });
+                                    }
+                                    if (chunk.type === 'reasoning' && chunk.text) {
+                                        messageBus.publish('CHAT_STREAM', {
+                                            type: 'reasoning',
                                             text: chunk.text,
                                             fullText: chunk.fullText,
                                             sessionKey: _sk
@@ -494,15 +514,19 @@ class Brain {
                         console.log(`[Brain] Continuation completed after ${continueCount} rounds, total ${finalText.length} chars`);
                     }
 
-                    // 保存最终完整文本到历史（续写时已经 push 了中间态，这里把最后的也 push）
+                    // 保存最终完整文本到历史（含 reasoning_content，DeepSeek 多轮必须回传）
+                    const reasoningContent = result.reasoningContent || '';
                     if (continueCount === 0) {
-                        this.history.push({ role: 'assistant', content: finalText });
+                        const histMsg = { role: 'assistant', content: finalText };
+                        if (reasoningContent) histMsg.reasoning_content = reasoningContent;
+                        this.history.push(histMsg);
                     }
 
                     // 发送完成信号
-                    messageBus.publish('CHAT_REPLY', { 
-                        text: finalText, 
-                        usage: totalUsage, 
+                    messageBus.publish('CHAT_REPLY', {
+                        text: finalText,
+                        reasoningContent,
+                        usage: totalUsage,
                         model: this.modelConfig.name,
                         done: true,
                         sessionKey: _sk
@@ -525,7 +549,10 @@ class Brain {
                         input: tc.input
                     });
                 }
-                this.history.push({ role: 'assistant', content: assistantContent });
+                const toolHistMsg = { role: 'assistant', content: assistantContent };
+                const toolReasoning = result.reasoningContent || '';
+                if (toolReasoning) toolHistMsg.reasoning_content = toolReasoning;
+                this.history.push(toolHistMsg);
 
                 // 转换到 EXECUTING 状态（仅一次）
                 if (stateMachine.state !== 'EXECUTING') {
@@ -635,8 +662,11 @@ class Brain {
             const finalResult = await callWithRetry(() => this.adapter.chat(this.history, { signal }));
             if (signal.aborted) return;
 
-            this.history.push({ role: 'assistant', content: finalResult.text });
-            messageBus.publish('CHAT_REPLY', { text: finalResult.text, usage: finalResult.usage, model: this.modelConfig.name, done: true, sessionKey: _sk });
+            const finalReasoning = finalResult.reasoningContent || '';
+            const finalHistMsg = { role: 'assistant', content: finalResult.text };
+            if (finalReasoning) finalHistMsg.reasoning_content = finalReasoning;
+            this.history.push(finalHistMsg);
+            messageBus.publish('CHAT_REPLY', { text: finalResult.text, reasoningContent: finalReasoning, usage: finalResult.usage, model: this.modelConfig.name, done: true, sessionKey: _sk });
             // ── SkillFactory：多工具调用后提炼技能 ──
             this._tryExtractSkill(userInput, finalResult.text);
 

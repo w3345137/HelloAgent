@@ -58,31 +58,52 @@ if (config.apiKey && !modelConfig.apiKey) {
     modelConfig.apiKey = config.apiKey;
 }
 
-// 如果 modelConfig 仍然没有 apiKey，尝试从 models.json 查找
-if (!modelConfig.apiKey) {
-    try {
-        const modelsPath = path.join(dataDir, 'config', 'models.json');
-        if (fs.existsSync(modelsPath)) {
-            const savedModels = JSON.parse(fs.readFileSync(modelsPath, 'utf-8'))
-                .filter(m => !m._deleted); // 排除已删除的模型
-            // 优先找同名模型，否则找任何有 apiKey 的模型
-            const match = savedModels.find(m => m.name === modelConfig.name && m.apiKey)
-                       || savedModels.find(m => m.apiKey);
+// 从 models.json 查找模型配置（优先 isMain）
+try {
+    const modelsPath = path.join(dataDir, 'config', 'models.json');
+    if (fs.existsSync(modelsPath)) {
+        const savedModels = JSON.parse(fs.readFileSync(modelsPath, 'utf-8'))
+            .filter(m => !m._deleted);
+        if (savedModels.length > 0) {
+            // 优先找 isMain 且 有 apiKey 的模型
+            let match = savedModels.find(m => m.isMain && m.apiKey);
+            // 其次找同名模型
+            if (!match) match = savedModels.find(m => m.name === modelConfig.name && m.apiKey);
+            // 最后找任意有 apiKey 的
+            if (!match) match = savedModels.find(m => m.apiKey);
+
             if (match) {
+                // 完全覆盖 modelConfig（不仅仅是 apiKey）
+                modelConfig.id = match.id || modelConfig.id;
+                modelConfig.name = match.name || modelConfig.name;
+                modelConfig.protocol = match.protocol || modelConfig.protocol;
+                modelConfig.endpoint = match.endpoint || modelConfig.endpoint;
+                modelConfig.model = match.model || modelConfig.model;
                 modelConfig.apiKey = match.apiKey;
-                if (match.endpoint) modelConfig.endpoint = match.endpoint;
-                if (match.protocol) modelConfig.protocol = match.protocol;
-                if (match.model) modelConfig.model = match.model;
-                if (match.name) modelConfig.name = match.name;
-                console.log(`[Config] API Key loaded from models.json (${match.name})`);
+                modelConfig.supportThinking = match.supportThinking;
+                modelConfig.reasoningEffort = match.reasoningEffort;
+                modelConfig.maxTokens = match.maxTokens || modelConfig.maxTokens;
+                console.log(`[Config] 模型配置加载自 models.json: ${match.name}`);
             }
         }
-    } catch (e) { logger.warn("MAIN", `操作跳过: ${e.message}`); }
+    }
+} catch (e) { logger.warn("MAIN", `操作跳过: ${e.message}`); }
+
+// 防呆：校验 endpoint 是否为有效 URL，如果不是则从内置预设补充
+if (modelConfig.endpoint && !modelConfig.endpoint.startsWith('http')) {
+    const adapterFactory = require('../modules/adapters/adapter-factory');
+    const builtInModels = adapterFactory.getBuiltInModels();
+    const preset = builtInModels.find(m => m.id === modelConfig.id || m.name === modelConfig.name);
+    if (preset && preset.endpoint) {
+        console.log(`[Config] 修复 endpoint: "${modelConfig.endpoint}" → "${preset.endpoint}"`);
+        modelConfig.endpoint = preset.endpoint;
+        modelConfig.protocol = preset.protocol || modelConfig.protocol;
+    }
 }
 
 // 最后回退到环境变量
 if (!modelConfig.apiKey) {
-    modelConfig.apiKey = process.env.MINIMAX_API_KEY || process.env.API_KEY || '';
+    modelConfig.apiKey = process.env.DEEPSEEK_API_KEY || process.env.MINIMAX_API_KEY || process.env.API_KEY || '';
 }
 
 const PORT = config.port || parseInt(process.env.HELLO_AGENT_PORT || '3000', 10);
@@ -156,7 +177,9 @@ async function boot() {
             if (fs.existsSync(modelsConfigPath)) {
                 const customModels = JSON.parse(fs.readFileSync(modelsConfigPath, 'utf-8'))
                     .filter(m => !m._deleted); // 排除已删除的模型
-                const found = customModels.find(m => m.name === modelName);
+                // 优先按 id 匹配，其次按 name
+                const found = customModels.find(m => m.id === modelName)
+                          || customModels.find(m => m.name === modelName);
                 if (found && found.apiKey) return found;
             }
         } catch (e) { logger.warn("MAIN", `操作跳过: ${e.message}`); }
@@ -314,7 +337,7 @@ async function boot() {
     });
 
     // 监听 assistant 回复，保存到 session history（含完整工具执行记录）
-    messageBus.subscribe('CHAT_REPLY', ({ text, usage, done, toolDone }) => {
+    messageBus.subscribe('CHAT_REPLY', ({ text, usage, done, toolDone, reasoningContent }) => {
         // 只在 done=true 且不是中断占位消息时视为最终回复；toolDone 和中断提示都不应落为最终 assistant 文本
         const isInterruptNotice = text === '[系统] 操作已中断';
         const isFinalReply = done === true && !isInterruptNotice;

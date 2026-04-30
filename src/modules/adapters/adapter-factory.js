@@ -38,6 +38,15 @@ const BUILT_IN_MODELS = {
         protocol: 'anthropic',
         endpoint: 'https://api.anthropic.com/v1/messages',
         model: 'claude-3-sonnet-20240229'
+    },
+    'deepseek-v4-flash': {
+        id: 'deepseek-v4-flash',
+        name: 'DeepSeek V4 Flash',
+        protocol: 'openai',
+        endpoint: 'https://api.deepseek.com/v1/chat/completions',
+        model: 'deepseek-v4-flash',
+        supportThinking: true,
+        maxTokens: 128000
     }
 };
 

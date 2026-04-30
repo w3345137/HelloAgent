@@ -1,7 +1,9 @@
 // core/skill-loader.js — 技能加载器
 // 参考 ECC 的 SKILL.md 设计：按需加载，不是每次都塞所有技能描述
+// 支持双层目录：项目级 (src/skills/) + 全局级 (~/.workbuddy/skills/)
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const logger = require('./logger');
 const { parseFrontmatter, scanSkillDir } = require('./yaml-parser');
 
@@ -9,8 +11,17 @@ class SkillLoader {
     constructor(dataDir) {
         this.dataDir = dataDir;
         this.skillsDir = path.join(dataDir, 'skills');
+        // 全局技能目录（跨项目共享，支持平台：WorkBuddy / Claude Code / Trae / .agents）
+        this.globalDirs = [
+            path.join(os.homedir(), '.workbuddy', 'skills'),   // WorkBuddy
+            path.join(os.homedir(), '.claude', 'skills'),       // Claude Code / OMC
+            path.join(os.homedir(), '.trae', 'skills'),         // Trae CN
+            path.join(os.homedir(), '.trae-cn', 'skills'),      // Trae CN (备选)
+            path.join(os.homedir(), '.agents', 'skills'),       // 开放标准
+        ].filter(dir => fs.existsSync(dir)); // 只保留实际存在的目录
         this.cache = new Map(); // 技能缓存
         this._initBuiltinSkills();
+        this._loadGlobalSkills(); // 加载全局技能
     }
 
     _initBuiltinSkills() {
@@ -134,6 +145,44 @@ ${skill.instructions}`;
 
         // 加载缓存
         this._loadAll();
+
+        if (this.globalDirs.length > 0) {
+            console.log(`[SkillLoader] 全局技能目录: ${this.globalDirs.join(', ')}`);
+        }
+    }
+
+    /**
+     * 加载全局目录中的技能（不初始化内置技能，只是读取已有的 SKILL.md）
+     */
+    _loadGlobalSkills() {
+        for (const dir of this.globalDirs) {
+            try {
+                const entries = fs.readdirSync(dir, { withFileTypes: true });
+                for (const entry of entries) {
+                    if (!entry.isDirectory()) continue;
+                    const skillFile = path.join(dir, entry.name, 'SKILL.md');
+                    if (!fs.existsSync(skillFile)) continue;
+
+                    // 项目级技能优先：同名不覆盖
+                    if (this.cache.has(entry.name)) continue;
+
+                    const content = fs.readFileSync(skillFile, 'utf-8');
+                    const parsed = parseFrontmatter(content);
+                    if (parsed) {
+                        // 扁平化存储，与 _loadAll() 一致
+                        this.cache.set(entry.name, {
+                            name: parsed.meta.name || entry.name,
+                            description: parsed.meta.description || '',
+                            triggers: parsed.meta.triggers || [],
+                            instructions: parsed.body || '',
+                            _source: dir // 标记来源
+                        });
+                    }
+                }
+            } catch (err) {
+                logger.warn('SKILL', `读取全局技能目录失败: ${dir} - ${err.message}`);
+            }
+        }
     }
 
     _loadAll() {
@@ -147,7 +196,13 @@ ${skill.instructions}`;
                     const content = fs.readFileSync(skillFile, 'utf-8');
                     const parsed = parseFrontmatter(content);
                     if (parsed) {
-                        this.cache.set(dir.name, parsed);
+                        // 扁平化存储：meta 字段提到顶层，body 作为 instructions
+                        this.cache.set(dir.name, {
+                            name: parsed.meta.name || dir.name,
+                            description: parsed.meta.description || '',
+                            triggers: parsed.meta.triggers || [],
+                            instructions: parsed.body || ''
+                        });
                     }
                 }
             }
@@ -228,6 +283,7 @@ ${skill.instructions}`;
     reload() {
         this.cache.clear();
         this._loadAll();
+        this._loadGlobalSkills();
     }
 
     /**
@@ -276,12 +332,12 @@ ${skill.instructions}`;
 
         // 解析 SKILL.md 获取技能名
         const content = fs.readFileSync(skillFile, 'utf-8');
-        const parsed = this._parseSkillMd(content);
+        const parsed = parseFrontmatter(content);
         if (!parsed) {
             return { success: false, error: 'SKILL.md 格式无效' };
         }
 
-        const skillName = parsed.name || path.basename(sourceDir);
+        const skillName = (parsed.meta && parsed.meta.name) || path.basename(sourceDir);
         const targetDir = path.join(this.skillsDir, skillName.toLowerCase().replace(/\s+/g, '-'));
 
         // 复制整个目录

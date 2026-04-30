@@ -624,6 +624,31 @@ select.custom-select option {
     30% { opacity: 1; transform: translateY(-4px); }
 }
 
+/* DeepSeek 思考过程 — 可折叠推理块 */
+.reasoning-block {
+    margin: 4px 0; border-radius: var(--radius-sm);
+    background: rgba(255,193,7,0.03);
+    border: 1px solid rgba(255,193,7,0.12);
+    overflow: hidden;
+}
+.reasoning-block summary {
+    padding: 6px 10px; cursor: pointer;
+    font-size: 12px; font-weight: 600;
+    color: var(--text-secondary); user-select: none;
+    display: flex; align-items: center; gap: 4px;
+}
+.reasoning-block summary:hover { background: rgba(255,193,7,0.04); }
+.reasoning-block .reasoning-content {
+    padding: 0 10px 8px;
+    font-size: 12px; line-height: 1.5;
+    color: var(--text-muted);
+    border-top: 1px solid rgba(255,193,7,0.08);
+    margin-top: -1px;
+    white-space: pre-wrap;
+}
+.reasoning-block[open] .reasoning-content { padding-top: 6px; }
+.reasoning-icon { font-size: 14px; }
+
 /* 工具调用可视化 — 极简紧凑风格 */
 .tool-block {
     margin: 2px 0; border-radius: var(--radius-sm); overflow: hidden;
@@ -2721,8 +2746,7 @@ function handleWsMessage(msg) {
 
         case 'CHAT_STREAM': {
             // 流式文本增量 — 按 sessionKey 隔离
-            const { text, fullText } = msg.data || {};
-            if (!text) break;
+            const { text, fullText, type: streamType } = msg.data || {};
 
             const ctx = _getActiveChatCtx(msg.data);
             const _msgs = ctx.messages;
@@ -2740,11 +2764,32 @@ function handleWsMessage(msg) {
                 ctx.setStreamingId(_sid);
             }
 
+            // 推理内容（reasoning_content）单独处理
+            if (streamType === 'reasoning' && text) {
+                const m = _msgs.find(m => m.id === _sid);
+                if (m) {
+                    // 查找或创建 _reasoning 块
+                    let reasoningBlock = m.content.find(c => c._reasoning);
+                    if (reasoningBlock) {
+                        reasoningBlock.text = fullText || (reasoningBlock.text + text);
+                    } else {
+                        m.content.push({ type: 'text', text: fullText || text, _reasoning: true, _streaming: true });
+                    }
+                    ctx.render();
+                }
+                break;
+            }
+
             // 追加文本到现有消息的**最后一个 text 块**
+            if (!text) break;
             const m = _msgs.find(m => m.id === _sid);
             if (m) {
                 const lastBlock = m.content[m.content.length - 1];
                 if (lastBlock && lastBlock.type === 'text' && lastBlock._streaming) {
+                    // 如果最后一个块是 _reasoning 块，文本到来时撤销推理标记
+                    if (lastBlock._reasoning) {
+                        delete lastBlock._reasoning;
+                    }
                     lastBlock.text = fullText || (lastBlock.text + text);
                     delete lastBlock._thinking;
                 } else {
@@ -3386,6 +3431,16 @@ function renderAssistantMsg(msg) {
                 + '<span class="thinking-text">思考中</span>'
                 + '<span class="thinking-dots"><span></span><span></span><span></span></span>'
                 + '</div>';
+
+        } else if (block.type === 'text' && block._reasoning) {
+            // DeepSeek V4 思考过程 — 可折叠展示
+            html += '<details class="reasoning-block" open>'
+                + '<summary><span class="reasoning-icon">🧠</span> 思考过程</summary>'
+                + '<div class="reasoning-content">'
+                + escapeHtml(block.text || '')
+                + '</div>'
+                + '</details>';
+
         } else if (block.type === 'text' && block.text) {
             // 只有"最后一个块 + 正在流式 + 带 _streaming 标记"才显示光标
             const blockIdx = content.indexOf(block);
@@ -4573,6 +4628,15 @@ function renderHelloAssistantMsg(msg) {
                 + '<span class="thinking-text">思考中</span>'
                 + '<span class="thinking-dots"><span></span><span></span><span></span></span>'
                 + '</div>';
+
+        } else if (block.type === 'text' && block._reasoning) {
+            // DeepSeek V4 思考过程 — 可折叠展示
+            html += '<details class="reasoning-block" open>'
+                + '<summary><span class="reasoning-icon">🧠</span> 思考过程</summary>'
+                + '<div class="reasoning-content">'
+                + escapeHtml(block.text || '')
+                + '</div>'
+                + '</details>';
         } else if (block.type === 'text' && block.text) {
             const blockIdx = content.indexOf(block);
             const isLastBlock = blockIdx === content.length - 1;
