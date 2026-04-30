@@ -31,6 +31,7 @@
  * @property {Array<ToolCall>} toolCalls - 工具调用列表
  * @property {string} stopReason - 停止原因 ('end_turn'|'tool_use'|'max_tokens')
  * @property {Object} usage - Token 使用统计
+ * @property {string} [reasoningContent] - 思考链内容（DeepSeek 等模型）
  */
 
 class BaseAdapter {

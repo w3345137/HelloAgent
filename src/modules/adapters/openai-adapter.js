@@ -21,6 +21,13 @@ class OpenAIAdapter extends BaseAdapter {
     }
 
     /**
+     * 是否启用思考模式
+     */
+    get _thinkingEnabled() {
+        return this.config.supportThinking !== false && this.config.thinking !== false;
+    }
+
+    /**
      * 转换内部工具定义为 OpenAI 格式
      */
     _convertTools(tools) {
@@ -45,6 +52,12 @@ class OpenAIAdapter extends BaseAdapter {
             const role = (msg.role || '').toLowerCase();
             const content = msg.content || msg.text || '';
 
+            // 保留 reasoning_content（DeepSeek 多轮对话必须回传）
+            const extra = {};
+            if (role === 'assistant' && msg.reasoning_content) {
+                extra.reasoning_content = msg.reasoning_content;
+            }
+
             // 处理 tool_result（来自 Anthropic 格式的 tool 结果）
             if (Array.isArray(content)) {
                 // 检查是否包含 tool_result
@@ -67,6 +80,7 @@ class OpenAIAdapter extends BaseAdapter {
                     openaiMessages.push({
                         role: 'assistant',
                         content: textParts || null,
+                        ...extra,
                         tool_calls: toolUses.map(tc => ({
                             id: tc.id,
                             type: 'function',
@@ -91,7 +105,7 @@ class OpenAIAdapter extends BaseAdapter {
                 // 如果只有文本，扁平为字符串（兼容不支持多模态的模型）
                 const textOnly = parts.every(p => p.type === 'text');
                 if (textOnly) {
-                    openaiMessages.push({ role: role === 'system' ? 'system' : (role === 'user' ? 'user' : 'assistant'), content: parts.map(p => p.text).join('\n') });
+                    openaiMessages.push({ role: role === 'system' ? 'system' : (role === 'user' ? 'user' : 'assistant'), content: parts.map(p => p.text).join('\n'), ...extra });
                 } else if (parts.length > 0) {
                     openaiMessages.push({ role: role === 'user' ? 'user' : (role === 'system' ? 'system' : 'assistant'), content: parts });
                 }
@@ -103,6 +117,7 @@ class OpenAIAdapter extends BaseAdapter {
                 openaiMessages.push({
                     role: 'assistant',
                     content: content || null,
+                    ...extra,
                     tool_calls: msg.toolCalls.map(tc => ({
                         id: tc.id,
                         type: 'function',
@@ -117,7 +132,7 @@ class OpenAIAdapter extends BaseAdapter {
 
             // 普通消息
             const r = role === 'system' ? 'system' : (role === 'user' ? 'user' : 'assistant');
-            openaiMessages.push({ role: r, content: content });
+            openaiMessages.push({ role: r, content: content, ...extra });
         }
 
         return openaiMessages;
@@ -129,11 +144,12 @@ class OpenAIAdapter extends BaseAdapter {
     _parseResponse(data) {
         const choice = data.choices?.[0];
         if (!choice) {
-            return { text: '', toolCalls: [], stopReason: 'end_turn', usage: { input: 0, output: 0 } };
+            return { text: '', toolCalls: [], stopReason: 'end_turn', usage: { input: 0, output: 0 }, reasoningContent: '' };
         }
 
         const message = choice.message;
         let text = message.content || '';
+        const reasoningContent = message.reasoning_content || '';
 
         // 提取 tool_calls
         let toolCalls = (message.tool_calls || []).map(tc => ({
@@ -161,6 +177,7 @@ class OpenAIAdapter extends BaseAdapter {
             text,
             toolCalls,
             stopReason,
+            reasoningContent,
             usage: {
                 input: data.usage?.prompt_tokens || 0,
                 output: data.usage?.completion_tokens || 0
@@ -217,6 +234,14 @@ class OpenAIAdapter extends BaseAdapter {
         }
     }
 
+    /**
+     * 判断错误是否为 DeepSeek 的 reasoning_content 回传错误
+     */
+    _isReasoningContentError(error) {
+        const msg = error.response?.data?.error?.message || error.apiError || '';
+        return msg.includes('reasoning_content') || msg.includes('must be passed back');
+    }
+
     async chat(messages, opts = {}) {
         try {
             const openaiMessages = this._convertMessages(messages);
@@ -226,6 +251,14 @@ class OpenAIAdapter extends BaseAdapter {
                 messages: openaiMessages,
                 max_tokens: opts.maxTokens || this.maxTokens
             };
+
+            // DeepSeek V4 Thinking 模式
+            if (this._thinkingEnabled) {
+                body.thinking = { type: 'enabled' };
+                if (this.config.reasoningEffort) {
+                    body.reasoning_effort = this.config.reasoningEffort;
+                }
+            }
 
             // 工具定义
             if (opts.tools && opts.tools.length > 0) {
@@ -252,8 +285,32 @@ class OpenAIAdapter extends BaseAdapter {
             const response = await axios.post(this.baseUrl, body, axiosOpts);
             return this._parseResponse(response.data);
         } catch (error) {
-            console.error('[OpenAIAdapter] Chat error:', 
-                error.response ? error.response.data : error.message);
+            // 如果是 reasoning_content 回传错误，自动降级重试（不带 thinking）
+            if (this._isReasoningContentError(error) && this._thinkingEnabled) {
+                console.log('[OpenAIAdapter] reasoning_content error, retrying without thinking mode...');
+                const optsNoThink = { ...opts };
+                body.thinking = { type: 'disabled' };
+                delete body.reasoning_effort;
+                try {
+                    const retryResp = await axios.post(this.baseUrl, body, axiosOpts);
+                    return this._parseResponse(retryResp.data);
+                } catch (retryErr) {
+                    console.error('[OpenAIAdapter] Retry without thinking also failed');
+                    if (retryErr.response?.data?.error?.message) {
+                        retryErr.message = `API Error: ${retryErr.response.data.error.message}`;
+                    }
+                    throw retryErr;
+                }
+            }
+
+            if (error.response?.data?.error?.message) {
+                const apiMsg = error.response.data.error.message;
+                console.error('[OpenAIAdapter] Chat error:', apiMsg);
+                error.message = `API Error: ${apiMsg}`;
+            } else {
+                console.error('[OpenAIAdapter] Chat error:',
+                    error.response ? error.response.data : error.message);
+            }
             throw error;
         }
     }
@@ -275,6 +332,14 @@ class OpenAIAdapter extends BaseAdapter {
                 stream: true
             };
 
+            // DeepSeek V4 Thinking 模式
+            if (this._thinkingEnabled) {
+                body.thinking = { type: 'enabled' };
+                if (this.config.reasoningEffort) {
+                    body.reasoning_effort = this.config.reasoningEffort;
+                }
+            }
+
             if (opts.tools && opts.tools.length > 0) {
                 body.tools = this._convertTools(opts.tools);
                 body.tool_choice = opts.tool_choice || 'auto';
@@ -295,6 +360,7 @@ class OpenAIAdapter extends BaseAdapter {
             const response = await axios.post(this.baseUrl, body, axiosOpts);
 
             let fullText = '';
+            let fullReasoning = '';
             const toolCalls = []; // { id, name, _arguments, input }
             let stopReason = 'end_turn';
             let usage = { input: 0, output: 0 };
@@ -328,6 +394,15 @@ class OpenAIAdapter extends BaseAdapter {
                                                 fullText: fullText
                                             });
                                         }
+                                    }
+
+                                    // DeepSeek V4 思考内容增量（reasoning_content）
+                                    if (delta?.reasoning_content && onChunk) {
+                                        onChunk({
+                                            type: 'reasoning',
+                                            text: delta.reasoning_content,
+                                            fullText: fullReasoning += delta.reasoning_content
+                                        });
                                     }
 
                                     // 工具调用增量
@@ -409,6 +484,7 @@ class OpenAIAdapter extends BaseAdapter {
                         text: fullText,
                         toolCalls: toolCalls,
                         stopReason: stopReason,
+                        reasoningContent: fullReasoning,
                         usage: usage
                     });
                 });
@@ -420,8 +496,38 @@ class OpenAIAdapter extends BaseAdapter {
             });
 
         } catch (error) {
-            console.error('[OpenAIAdapter] ChatStream error:', 
-                error.response ? error.response.data : error.message);
+            // reasoning_content 回传错误 → 降级到非流式 chat，手动构造 body 去掉 thinking
+            if (this._isReasoningContentError(error) && this._thinkingEnabled) {
+                console.log('[OpenAIAdapter] reasoning_content error in stream, retrying non-streaming without thinking...');
+                try {
+                    const fallbackBody = { model: this.model, messages: openaiMessages, max_tokens: opts.maxTokens || this.maxTokens };
+                    if (opts.tools && opts.tools.length > 0) {
+                        fallbackBody.tools = this._convertTools(opts.tools);
+                        fallbackBody.tool_choice = typeof opts.tool_choice === 'object' ? opts.tool_choice.type || 'auto' : (opts.tool_choice || 'auto');
+                    }
+                    const fbResp = await axios.post(this.baseUrl, fallbackBody, { headers, signal: opts.signal, timeout: 120000 });
+                    const fbResult = this._parseResponse(fbResp.data);
+                    // 对 onChunk 模拟发送完整文本
+                    if (onChunk && fbResult.text) {
+                        onChunk({ type: 'text', text: fbResult.text, fullText: fbResult.text });
+                    }
+                    return fbResult;
+                } catch (fbErr) {
+                    if (fbErr.response?.data?.error?.message) {
+                        fbErr.message = `API Error: ${fbErr.response.data.error.message}`;
+                    }
+                    throw fbErr;
+                }
+            }
+
+            if (error.response?.data?.error?.message) {
+                const apiMsg = error.response.data.error.message;
+                console.error('[OpenAIAdapter] ChatStream API error:', apiMsg);
+                error.message = `API Error: ${apiMsg}`;
+            } else {
+                console.error('[OpenAIAdapter] ChatStream error:',
+                    error.response ? error.response.data : error.message);
+            }
             throw error;
         }
     }
